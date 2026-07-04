@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -26,15 +27,40 @@ func main() {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "warning:", err)
 	}
+	models, err := config.LoadModels()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(1)
+	}
 
-	model := flag.String("model", cfg.Model, "Ollama model to use")
-	host := flag.String("host", cfg.OllamaHost, "Ollama host URL")
+	model := flag.String("model", cfg.DefaultModel, "Model entry name from models.json")
+	host := flag.String("host", "", "Override selected model host URL")
 	flag.Parse()
 
-	cfg.Model = *model
-	cfg.OllamaHost = *host
+	cfg.DefaultModel = *model
+	selected, err := config.ResolveModel(models, cfg.DefaultModel)
+	if err != nil {
+		names := make([]string, 0, len(models))
+		for _, m := range models {
+			names = append(names, m.Name)
+		}
+		slices.Sort(names)
+		fmt.Fprintln(os.Stderr, "error:", err)
+		fmt.Fprintln(os.Stderr, "available models:", strings.Join(names, ", "))
+		os.Exit(1)
+	}
 
-	client := ollama.New(cfg.OllamaHost, cfg.Model)
+	hostValue := selected.Host
+	if *host != "" {
+		hostValue = config.NormalizeHost(*host)
+	}
+
+	apiKey := ""
+	if selected.APIKeyEnv != "" {
+		apiKey = os.Getenv(selected.APIKeyEnv)
+	}
+
+	client := ollama.New(hostValue, selected.Model, apiKey)
 	if err := client.Ping(context.Background()); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		fmt.Fprintln(os.Stderr, "Is Ollama running? Try: ollama serve")
@@ -84,20 +110,23 @@ func runOnce(cfg config.Config, client *ollama.Client, request string) int {
 		fmt.Println(s.Explanation)
 	}
 
-	// SAFE commands default to Yes (Enter runs); anything riskier defaults to No.
-	defaultYes := level == safety.Safe
-	if defaultYes {
-		fmt.Print("Run this command? [Y/n] ")
-	} else {
-		fmt.Print("Run this command? [y/N] ")
-	}
+	run := true
+	if cfg.Safety.Confirm(level) {
+		// SAFE commands default to Yes (Enter runs); anything riskier defaults to No.
+		defaultYes := level == safety.Safe
+		if defaultYes {
+			fmt.Print("Run this command? [Y/n] ")
+		} else {
+			fmt.Print("Run this command? [y/N] ")
+		}
 
-	reader := bufio.NewReader(os.Stdin)
-	answer, _ := reader.ReadString('\n')
-	answer = strings.ToLower(strings.TrimSpace(answer))
-	run := answer == "y"
-	if defaultYes {
-		run = answer == "" || answer == "y"
+		reader := bufio.NewReader(os.Stdin)
+		answer, _ := reader.ReadString('\n')
+		answer = strings.ToLower(strings.TrimSpace(answer))
+		run = answer == "y"
+		if defaultYes {
+			run = answer == "" || answer == "y"
+		}
 	}
 	if !run {
 		fmt.Println("discarded")

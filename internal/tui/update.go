@@ -46,8 +46,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.input.Focus()
 			return m, nil
 		}
-		m.state = stateConfirm
 		m.appendHistory(suggestionBlock(m.suggestion))
+		if !m.cfg.Safety.Confirm(effectiveLevel(m.suggestion)) {
+			m.state = stateExecuting
+			m.appendHistory(runningBlock(m.suggestion.Command))
+			m.execCh = executor.Run(context.Background(), m.cfg.Shell, m.suggestion.Command)
+			return m, tea.Batch(m.spinner.Tick, waitForExec(m.execCh))
+		}
+		m.state = stateConfirm
 		return m, nil
 
 	case execEventMsg:
@@ -160,8 +166,14 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			m.suggestion.Command = edited
 			m.suggestion.Dangerous = safety.Classify(edited) == safety.Danger
-			m.state = stateConfirm
 			m.appendHistory(suggestionBlock(m.suggestion))
+			if !m.cfg.Safety.Confirm(effectiveLevel(m.suggestion)) {
+				m.state = stateExecuting
+				m.appendHistory(runningBlock(m.suggestion.Command))
+				m.execCh = executor.Run(context.Background(), m.cfg.Shell, m.suggestion.Command)
+				return m, tea.Batch(m.spinner.Tick, waitForExec(m.execCh))
+			}
+			m.state = stateConfirm
 			return m, nil
 		case tea.KeyEsc:
 			m.input.Reset()

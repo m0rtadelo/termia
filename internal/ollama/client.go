@@ -13,17 +13,19 @@ import (
 
 // Client talks to a local Ollama server.
 type Client struct {
-	Host  string
-	Model string
-	http  *http.Client
+	Host   string
+	Model  string
+	apiKey string
+	http   *http.Client
 }
 
 // New returns a Client for the given host and model.
-func New(host, model string) *Client {
+func New(host, model, apiKey string) *Client {
 	return &Client{
-		Host:  strings.TrimRight(host, "/"),
-		Model: model,
-		http:  &http.Client{Timeout: 5 * time.Minute},
+		Host:   strings.TrimRight(host, "/"),
+		Model:  model,
+		apiKey: apiKey,
+		http:   &http.Client{Timeout: 5 * time.Minute},
 	}
 }
 
@@ -36,6 +38,7 @@ func (c *Client) Ping(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	c.applyAuth(req)
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return fmt.Errorf("Ollama not reachable at %s: %w", c.Host, err)
@@ -68,6 +71,7 @@ func (c *Client) Chat(ctx context.Context, messages []Message, format json.RawMe
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	c.applyAuth(req)
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -108,4 +112,11 @@ func (c *Client) Chat(ctx context.Context, messages []Message, format json.RawMe
 		return sb.String(), fmt.Errorf("read stream: %w", err)
 	}
 	return sb.String(), nil
+}
+
+func (c *Client) applyAuth(req *http.Request) {
+	if c.apiKey == "" {
+		return
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
 }

@@ -14,7 +14,7 @@ import (
 // Model embedded strings.Builder by value; Bubble Tea copies the Model on every
 // Update, which panics once the builder has been written to.
 func TestUpdateDoesNotPanicOnBuilderCopy(t *testing.T) {
-	m := New(config.Default(), ollama.New("http://localhost:1", "test"))
+	m := New(config.Default(), ollama.New("http://localhost:1", "test", ""))
 
 	var model tea.Model = m
 	// Establish size (marks the model ready and sets the viewport).
