@@ -117,7 +117,16 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case stateConfirm:
-		switch strings.ToLower(msg.String()) {
+		key := strings.ToLower(msg.String())
+		// SAFE commands default to Yes: Enter runs them.
+		if msg.Type == tea.KeyEnter {
+			if effectiveLevel(m.suggestion) == safety.Safe {
+				key = "y"
+			} else {
+				return m, nil
+			}
+		}
+		switch key {
 		case "y":
 			m.state = stateExecuting
 			m.appendHistory(runningBlock(m.suggestion.Command))

@@ -35,7 +35,11 @@ func (m Model) View() string {
 	case stateExecuting:
 		footer = m.spinner.View() + " running…"
 	case stateConfirm:
-		footer = footerStyle.Render("[y] run   [e] edit   [n] discard")
+		if effectiveLevel(m.suggestion) == safety.Safe {
+			footer = footerStyle.Render("[Y/enter] run   [e] edit   [n] discard")
+		} else {
+			footer = footerStyle.Render("[y] run   [e] edit   [n] discard")
+		}
 	case stateEditing:
 		footer = m.input.View() + "\n" + footerStyle.Render("editing — enter to accept, esc to cancel")
 	default:
@@ -71,16 +75,23 @@ func assistantBlock(s string) string {
 }
 
 func suggestionBlock(s prompt.Suggestion) string {
-	level := safety.Classify(s.Command)
-	if s.Dangerous && level < safety.Danger {
-		level = safety.Caution
-	}
+	level := effectiveLevel(s)
 	var b strings.Builder
 	b.WriteString(badgeFor(level) + " " + cmdStyle.Render(s.Command) + "\n")
 	if s.Explanation != "" {
 		b.WriteString(assistant.Render(s.Explanation) + "\n")
 	}
 	return b.String()
+}
+
+// effectiveLevel returns the risk level for a suggestion, bumping to at least
+// Caution when the model flagged it dangerous.
+func effectiveLevel(s prompt.Suggestion) safety.Level {
+	level := safety.Classify(s.Command)
+	if s.Dangerous && level < safety.Danger {
+		level = safety.Caution
+	}
+	return level
 }
 
 func runningBlock(cmd string) string {

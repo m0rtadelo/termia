@@ -83,11 +83,23 @@ func runOnce(cfg config.Config, client *ollama.Client, request string) int {
 	if s.Explanation != "" {
 		fmt.Println(s.Explanation)
 	}
-	fmt.Print("Run this command? [y/N] ")
+
+	// SAFE commands default to Yes (Enter runs); anything riskier defaults to No.
+	defaultYes := level == safety.Safe
+	if defaultYes {
+		fmt.Print("Run this command? [Y/n] ")
+	} else {
+		fmt.Print("Run this command? [y/N] ")
+	}
 
 	reader := bufio.NewReader(os.Stdin)
 	answer, _ := reader.ReadString('\n')
-	if strings.ToLower(strings.TrimSpace(answer)) != "y" {
+	answer = strings.ToLower(strings.TrimSpace(answer))
+	run := answer == "y"
+	if defaultYes {
+		run = answer == "" || answer == "y"
+	}
+	if !run {
 		fmt.Println("discarded")
 		return 0
 	}
