@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"os"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -41,6 +42,9 @@ type Model struct {
 	suggestion prompt.Suggestion
 	execCh     <-chan executor.Event
 	tokenCh    chan tea.Msg
+
+	turns      []ollama.Message // user+assistant pairs from previous requests
+	pendingReq string           // user request for the current in-flight chat
 
 	ready  bool
 	width  int
@@ -92,19 +96,31 @@ func (m *Model) appendHistory(block string) {
 func (m *Model) startThinking(request string) tea.Cmd {
 	tokens := make(chan tea.Msg, 64)
 	m.tokenCh = tokens
+	m.pendingReq = request
 
 	go func() {
-		messages := []ollama.Message{
-			{Role: "system", Content: prompt.System(m.cfg.Shell)},
-			{Role: "user", Content: request},
+		cwd, _ := os.Getwd()
+		sysPrompt := prompt.System(m.cfg.Shell, cwd, m.cfg.SystemPrompt)
+
+		messages := make([]ollama.Message, 0, 1+len(m.turns)+1)
+		messages = append(messages, ollama.Message{Role: "system", Content: sysPrompt})
+		if m.cfg.ContextTurns > 0 {
+			maxMsgs := m.cfg.ContextTurns * 2
+			history := m.turns
+			if len(history) > maxMsgs {
+				history = history[len(history)-maxMsgs:]
+			}
+			messages = append(messages, history...)
 		}
+		messages = append(messages, ollama.Message{Role: "user", Content: request})
+
 		raw, err := m.client.Chat(context.Background(), messages, prompt.ResponseSchema, func(t string) {
 			tokens <- tokenMsg(t)
 		})
 		if err != nil {
 			tokens <- thinkingDoneMsg{err: err}
 		} else {
-			tokens <- thinkingDoneMsg{suggestion: prompt.Parse(raw)}
+			tokens <- thinkingDoneMsg{suggestion: prompt.Parse(raw), rawResponse: raw}
 		}
 		close(tokens)
 	}()

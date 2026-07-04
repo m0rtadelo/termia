@@ -15,10 +15,17 @@ TermIA is implemented as a Go TUI + CLI assistant that converts natural language
 	- `default_model`: model entry name from `models.json`
 	- `shell`: shell path used by executor
 	- `safety`: `{ "safe": bool, "caution": bool, "danger": bool }`
+	- `context_turns`: number of previous request/response pairs sent to the model for context (default `3`, set to `0` for stateless)
+	- `system_prompt`: optional full replacement for the built-in system prompt; leave empty to use the default
 - `~/.config/termia/models.json`
 	- Array of model entries: `{ "name", "model", "host", "api_key_env"? }`
 
 Both files are seeded on first run when missing.
+
+### Prompt and context
+- The system prompt includes the current OS, shell, and working directory (`os.Getwd()` per request).
+- In TUI mode, the last `config.context_turns` user+assistant pairs are prepended to each request so the model has conversation context.
+- If `config.system_prompt` is non-empty it fully replaces the built-in prompt.
 
 ### Model selection and host
 - `--model` selects by entry `name` in `models.json` (with model-id fallback for compatibility).

@@ -10,8 +10,9 @@ type tokenMsg string
 
 // thinkingDoneMsg is emitted when the model has finished responding.
 type thinkingDoneMsg struct {
-	suggestion prompt.Suggestion
-	err        error
+	suggestion  prompt.Suggestion
+	rawResponse string
+	err         error
 }
 
 // execEventMsg wraps a single line/result from a running command.

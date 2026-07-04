@@ -29,13 +29,19 @@ var ResponseSchema = json.RawMessage(`{
   "required": ["command", "explanation", "dangerous"]
 }`)
 
-// System returns the system prompt, tailored to the current OS and shell.
-func System(shell string) string {
+// System returns the system prompt tailored to the current OS, shell, and
+// working directory. If custom is non-empty it is returned as-is, giving the
+// user full control over the prompt via config.json.
+func System(shell, cwd, custom string) string {
+	if custom != "" {
+		return custom
+	}
 	return fmt.Sprintf(`You are TermIA, an assistant that converts a user's natural-language request into a single shell command.
 
 Environment:
 - Operating system: %s
 - Shell: %s
+- Working directory: %s
 
 Rules:
 - Reply ONLY with a JSON object: {"command": string, "explanation": string, "dangerous": boolean}.
@@ -43,7 +49,7 @@ Rules:
 - "explanation" is a short (one or two sentences) description of what the command does.
 - "dangerous" is true if the command deletes data, overwrites files, changes permissions broadly, or is otherwise hard to undo.
 - If the request cannot be satisfied with a command, set "command" to an empty string and explain why in "explanation".
-- Never include commentary outside the JSON object.`, runtime.GOOS, shell)
+- Never include commentary outside the JSON object.`, runtime.GOOS, shell, cwd)
 }
 
 // jsonObjectRe matches the first {...} block in a string as a fallback for

@@ -24,6 +24,8 @@ type Config struct {
 	DefaultModel string       `json:"default_model"`
 	Shell        string       `json:"shell"`
 	Safety       SafetyConfig `json:"safety"`
+	ContextTurns int          `json:"context_turns"`
+	SystemPrompt string       `json:"system_prompt,omitempty"`
 }
 
 // SafetyConfig controls whether confirmation prompts are shown for each level.
@@ -52,6 +54,7 @@ func Default() Config {
 		DefaultModel: DefaultModelName,
 		Shell:        shell,
 		Safety:       defaultSafety(),
+		ContextTurns: 3,
 	}
 }
 
@@ -138,6 +141,8 @@ func Load() (Config, error) {
 		DefaultModel string        `json:"default_model"`
 		Shell        string        `json:"shell"`
 		Safety       *SafetyConfig `json:"safety"`
+		ContextTurns *int          `json:"context_turns"`
+		SystemPrompt string        `json:"system_prompt"`
 
 		// Backward-compatible fields from older config versions.
 		Model      string `json:"model"`
@@ -170,6 +175,12 @@ func Load() (Config, error) {
 	} else {
 		cfg.Safety = *raw.Safety
 	}
+	if raw.ContextTurns == nil {
+		cfg.ContextTurns = def.ContextTurns
+	} else {
+		cfg.ContextTurns = *raw.ContextTurns
+	}
+	cfg.SystemPrompt = raw.SystemPrompt
 	return cfg, nil
 }
 

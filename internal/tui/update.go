@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/m0rtadelo/termia/internal/executor"
+	"github.com/m0rtadelo/termia/internal/ollama"
 	"github.com/m0rtadelo/termia/internal/safety"
 )
 
@@ -38,6 +39,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.state = stateInput
 			m.input.Focus()
 			return m, nil
+		}
+		// Record the user+assistant pair so future requests have context.
+		if m.cfg.ContextTurns > 0 && msg.rawResponse != "" {
+			m.turns = append(m.turns,
+				ollama.Message{Role: "user", Content: m.pendingReq},
+				ollama.Message{Role: "assistant", Content: msg.rawResponse},
+			)
 		}
 		m.suggestion = msg.suggestion
 		if m.suggestion.Command == "" {

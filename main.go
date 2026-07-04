@@ -83,8 +83,9 @@ func main() {
 // runOnce handles the non-interactive path: suggest a command, ask y/N, run it.
 func runOnce(cfg config.Config, client *ollama.Client, request string) int {
 	ctx := context.Background()
+	cwd, _ := os.Getwd()
 	messages := []ollama.Message{
-		{Role: "system", Content: prompt.System(cfg.Shell)},
+		{Role: "system", Content: prompt.System(cfg.Shell, cwd, cfg.SystemPrompt)},
 		{Role: "user", Content: request},
 	}
 

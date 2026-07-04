@@ -78,7 +78,9 @@ On first run, TermIA seeds both files under `~/.config/termia/`:
     "safe": true,
     "caution": true,
     "danger": true
-  }
+  },
+  "context_turns": 3,
+  "system_prompt": ""
 }
 ```
 
@@ -106,6 +108,20 @@ Notes:
 - Safety toggles control whether that level asks for confirmation.
   - `true`: ask for confirmation.
   - `false`: auto-run commands at that level.
+- `context_turns` sets how many previous request/response pairs are included in each prompt so the model has conversation context. Default is `3`. Set to `0` for stateless (fresh each request).
+- `system_prompt` lets you replace the built-in system prompt entirely. Leave empty (or omit) to use the default. When set, TermIA sends your string verbatim as the system message; it is your responsibility to instruct the model to return the expected JSON shape.
+
+### Example: Custom system prompt
+
+You can override the system prompt to customize behavior. For example, to encourage more defensive commands:
+
+```json
+{
+  "system_prompt": "You are TermIA, a cautious assistant that converts natural-language requests into shell commands.\n\nEnvironment:\n- Operating system: {OS}\n- Shell: {SHELL}\n- Working directory: {CWD}\n\nRules:\n- Reply ONLY with JSON: {\"command\": string, \"explanation\": string, \"dangerous\": boolean}.\n- Prefer commands that are safe and non-destructive.\n- If unsure, err on the side of caution and set \"dangerous\" to true.\n- Never generate commands that could cause data loss without explicit confirmation.\n- Include comments in multiline commands for clarity.\n- Never include commentary outside the JSON object."
+}
+```
+
+Note: `{OS}`, `{SHELL}`, and `{CWD}` are filled in at request time with your actual OS, shell, and current working directory.
 
 ## Development
 
