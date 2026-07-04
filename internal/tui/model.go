@@ -35,8 +35,8 @@ type Model struct {
 	spinner  spinner.Model
 
 	state   state
-	history strings.Builder // rendered transcript
-	stream  strings.Builder // in-progress model output
+	history *strings.Builder // rendered transcript
+	stream  *strings.Builder // in-progress model output
 
 	suggestion prompt.Suggestion
 	execCh     <-chan executor.Event
@@ -65,6 +65,8 @@ func New(cfg config.Config, client *ollama.Client) Model {
 		input:   ti,
 		spinner: sp,
 		state:   stateInput,
+		history: &strings.Builder{},
+		stream:  &strings.Builder{},
 	}
 }
 
